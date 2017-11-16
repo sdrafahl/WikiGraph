@@ -17,6 +17,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -43,7 +45,7 @@ public class WikiCrawler
 	
 	String fileName;
 
-	public WikiCrawler(String seedUrl, int max, ArrayList<String> topics, String fileName) {;
+	public WikiCrawler(String seedUrl, int max, ArrayList<String> topics, String fileName) {
 		this.max = max;
 		this.url = seedUrl;
 		this.topics = topics;
@@ -62,10 +64,8 @@ public class WikiCrawler
 			}
 		}
 		ArrayList<String> urls = new ArrayList<String>();
-		
+		HashSet<String> hash = new HashSet<String>();
 		Scanner scan = new Scanner(subDoc);
-		//while(scan.hasNextLine()) {
-			//String line = scan.nextLine();
 			String line = subDoc;
 			Scanner words = new Scanner(line);
 			while(words.hasNext()) {
@@ -84,71 +84,85 @@ public class WikiCrawler
 						}
 					}
 					String link = word.substring(first, last);
-					if(!link.contains("#") && !link.contains(":")) {
+					if(!link.contains("#") && !link.contains(":") && !hash.contains(link)) {
 						if(link.contains(".")) {
 							if(link.contains(".com")) {
 								urls.add(link);
+								hash.add(link);
 							}
 						} else {
 							urls.add(link);
+							hash.add(link);
 						}
 					}
 				}
 			}
-		//}
 		return urls;
 	}
 
 	public void crawl() {
-		HashSet<String> hash = new HashSet<String>();
+		HashMap h = new HashMap();
 		PriorityQueue<Node> q=new PriorityQueue<Node>(); 
 		try {
 			String doc = getHTML(this.url);
 			if(this.hasTopics(doc)) {
-				hash.add(doc);
-				Node n = new Node(doc);
-				n.link = this.url;
-				this.vertices.add(n);
-				q.add(n);
-				while(this.vertices.size() < max && !q.isEmpty()) {
-					n = q.poll();
-					ArrayList<String> links = this.extractLinks(n.doc);
-					for(int x=0;x<links.size();x++) {
-						String html = getHTML(links.get(x));
-						if(!hash.contains(html) && this.hasTopics(html)) {
-							Node n1 = new Node(html);
-							n1.link = links.get(x);
-							hash.add(html);
-							q.add(n1);
-							n.adj.add(n1);
-							this.vertices.add(n1);
-							System.out.println(this.vertices.size());
-							if(this.vertices.size() >= max) {
-								System.out.println("break");
-								break;
+				Node root = new Node(doc);
+				root.link = this.url;
+				q.add(root);
+				h.put(doc, root);
+				while(!q.isEmpty()) {
+					System.out.println("The Size of Que: " +  q.size());
+					System.out.println("The number of pages: " + h.size());
+					Node temp = q.poll();
+					ArrayList<String> links = this.extractLinks(temp.doc);
+					if(h.size() < this.max) {
+						for(int x=0;x<links.size() && h.size() < this.max;x++) {
+							String docTemp = this.getHTML(links.get(x));
+							if(!h.containsKey(links.get(x)) && this.hasTopics(docTemp)) {
+								Node n = new Node(docTemp);
+								n.link = links.get(x);
+								temp.adj.add(n);
+								h.put(links.get(x), n);
+								q.add(n);
+							} else {
+								Node neighbor = (Node) h.get(docTemp);
+								System.out.println("Adding Neighbor: " + neighbor.link);
+								if(!temp.link.equals(neighbor.link)) {
+									temp.adj.add(neighbor);
+								}
 							}
-							
+						}
+					} else {
+						for(int x=0;x<links.size();x++) {
+							if(h.containsKey(links.get(x)) && !temp.link.equals(links.get(x))) {
+								Node neig = (Node) h.get(links.get(x));
+								temp.adj.add(neig);
+							}
 						}
 					}
 				}
-				System.out.println("Out of the loop");
 			}
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
 		int count = 0;
-		while(true) {
-			File temp = new File("../../graph" + count + ".txt");
+		//while(true) {
+			//File temp = new File("../../graph" + count + ".txt");
+			File temp = new File("../../WikiISU.txt");
 			if(!temp.exists()) {
 				try {
 					temp.createNewFile();
 					PrintWriter writer = new PrintWriter(temp);
-					writer.println(this.vertices.size());
-					for(int x=0;x<this.vertices.size();x++) {
-						System.out.println(x);
-						for(int y=0;y<this.vertices.get(x).adj.size();y++) {
-							writer.println(this.vertices.get(x).link + " " + this.vertices.get(x).adj.get(y).link);
+					writer.println(h.size());
+					Collection col = h.values();
+					Object[] nodes =  col.toArray();
+					
+					for(int x=0;x<nodes.length;x++) {
+						Node tem = (Node) nodes[x];
+						System.out.println(tem.link);
+						for(int y=0;y<tem.adj.size();y++) {
+							writer.println(tem.link + " " + tem.adj.get(y).link);
 						}
 					}
 					writer.close();
@@ -158,11 +172,13 @@ public class WikiCrawler
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				break;
-			} else {
-				count++;
-			}
+				//break;
+			//} else {
+			//	count++;
+			//}
 		}
+		
+		
 	}
 	
 	private String getHTML(String url) throws IOException {
@@ -170,7 +186,6 @@ public class WikiCrawler
 			try {
 				Thread.sleep(3000);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			requests = 0;

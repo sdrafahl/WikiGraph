@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -74,7 +75,7 @@ public class GraphProcessor
 		return n.adj.size();
 	}
 	
-	public void maxOutDegree() {
+	private void maxOutDegree() {
 		Collection col = this.hash.values();
 		Object[] nodes =  col.toArray();
 		Node temp = (Node) nodes[0];
@@ -99,7 +100,7 @@ public class GraphProcessor
 		System.out.println("END");
 	}
 	
-	public void maxCentrality() {
+	private void maxCentrality() {
 		Collection col = this.hash.values();
 		Object[] nodes =  col.toArray();
 		Node temp = (Node) nodes[0];
@@ -132,12 +133,25 @@ public class GraphProcessor
 
 	public ArrayList<String> bfsPath(String u, String v)
 	{
+		ArrayList<String> path = new ArrayList<String>();
+		if(u.equals(v)) {
+			path.add(u);
+			return path;
+		}
 		resetGraph();
-		return this.dykstra(u, v);
+		ArrayList<Node> list = this.dykstra(u, v).get(0);
+		for(int x=list.size()-1;x>=0;x--) {
+			path.add(list.get(x).name);
+		}
+		
+		return path;
 	}
 	
-	private ArrayList<String> dykstra(String u, String v)
+	private ArrayList<ArrayList<Node>> dykstra(String u, String v)
 	{
+		if(u.equals(v)) {
+			return null;
+		}
 		resetDistance();
 		PriorityQueue<Node> q = new PriorityQueue<Node>();
 		Node from = (Node) this.hash.get(u);
@@ -155,58 +169,70 @@ public class GraphProcessor
 				}
 			}
 		}
-		
-		ArrayList<String> path = new ArrayList<String>();
-		
-		if(to.distance == this.max * 2) {
-			return path;
+		ArrayList<ArrayList<Node>> paths = new ArrayList<ArrayList<Node>>();
+		if(to.distance == (2 * this.max)) {
+			paths.clear();
+			return paths;
 		}
 		
-		Node toNode = (Node) this.hash.get(v);
-		Node fromNode = (Node) this.hash.get(u);
-		path.add(toNode.name);
-		while(!toNode.name.equals(fromNode.name)) {
-			if(toNode.inAdj.size() == 0) {
-				path.clear();
-				return path;
+		from = (Node) this.hash.get(v);
+		getPath(from, null, paths);
+		for(int x=0;x<paths.size();x++) {
+			ArrayList<Node> n = paths.get(x);
+			for(int y=0;y<n.size();y++) {
+				if(y != 0 && y != (n.size() - 1))
+				n.get(y).counted++;
 			}
-			Node min = toNode.inAdj.get(0);
-			ArrayList<Node> minSet = new ArrayList<Node>();
-			for(int x=0;x<toNode.inAdj.size();x++) {
-				if(min.distance > toNode.inAdj.get(x).distance) {
-					min = toNode.inAdj.get(x);
-					minSet.clear();
-					minSet.add(min);
-				} else if(min.distance == toNode.inAdj.get(x).distance) {
-					minSet.add(toNode.inAdj.get(x));
-				}
+		}
+		
+		return paths;
+		
+	}
+	
+	private void getPath(Node n, ArrayList<Node> path, ArrayList<ArrayList<Node>> paths) {
+		
+		if(n.distance == 0) {
+			path.add(n);
+			paths.add(path);
+			return;
+		}
+		
+		if(path == null) {
+			path = new ArrayList<Node>();
+		}
+		
+		path.add(n);
+		if(n.distance == 0) {
+			paths.add(path);
+			return;
+		}
+		
+		if(n.inAdj.size() == 0) {
+			path.clear();
+			return;
+		}
+
+		int min = n.inAdj.get(0).distance;
+		ArrayList<Node> minSet = new ArrayList<Node>();
+		for(int x=0;x<n.inAdj.size();x++) {
+			Node temp = n.inAdj.get(x);
+			if(min == temp.distance) {
+				minSet.add(temp);
+			} else if(temp.distance < min) {
+				min = temp.distance;
+				minSet.clear();
+				minSet.add(temp);
 			}
-			Node tempOld = toNode;
-			toNode = min;
+		}
+	
+		for(int x=0;x<minSet.size();x++) {
+			ArrayList<Node> p = new ArrayList<Node>();
+			for(int y=0;y<path.size();y++) {
+				p.add(path.get(y));
+			}
 			
-			if(minSet.size() > 1) {
-				for(int x=0;x<minSet.size();x++) {
-					if(!minSet.get(x).name.equals(toNode.name)) {
-						this.updateIter(minSet.get(x));
-						if(!tempOld.name.equals(v)) {
-							tempOld.counted++;
-						}
-					}
-				}
-			}
-			
-			if(!toNode.name.equals(fromNode.name)) {
-				toNode.counted++;
-			}
-			path.add(toNode.name);
+			getPath(minSet.get(x), p, paths);
 		}
-		
-		ArrayList<String> reversed = new ArrayList<String>();
-		for(int x=path.size()-1;x >= 0; x--) {
-			String temp = path.get(x);
-			reversed.add(temp);
-		}
-		return reversed;
 	}
 
 	public int diameter()
@@ -221,16 +247,16 @@ public class GraphProcessor
 			boolean first = true;
 			int submax = 0;
 			for(int y=0;y<nodes1.length;y++) {
-				Node n1 = (Node) nodes1[y];
-				if(first) {
-					this.resetDistance();
-					this.dykstra(n.name, n1.name).size();
-					//resetDistance();
-					//this.bfsPathHelper(n.name, n1.name, null, null);
-					first = false;
-				}
-				if(submax < n1.distance && n1.visited) {
-					submax = n1.distance;
+				if(y != x) {
+					Node n1 = (Node) nodes1[y];
+					if(first) {
+						this.resetDistance();
+						this.dykstra(n.name, n1.name);
+						first = false;
+					}
+					if(submax < n1.distance && n1.visited) {
+						submax = n1.distance;
+					}
 				}
 			}
 			if(maxDiameter < submax) {
@@ -253,88 +279,12 @@ public class GraphProcessor
 				Node n1 = (Node) nodes[y];
 				Node n = (Node) nodes[x];
 				Node temp = (Node) this.hash.get(v);
-				System.out.println(n.name + " " + n1.name);
 				this.dykstra(n.name, n1.name);
-				System.out.println(temp.counted);
+				
 			}
 		}
 		Node temp = (Node) this.hash.get(v);
 		return temp.counted;
-	}
-	
-	private void updateCount(Node n) {
-		if(n.distance == 0) {
-			return;
-		}
-		
-		int min = n.inAdj.get(0).distance;
-		ArrayList<Node> minlist = new ArrayList<Node>();
-		
-		for(int x=0;x<n.inAdj.size();x++) {
-			Node temp = n.inAdj.get(x);
-			if(temp.distance == 0) {
-				for(int y=0;y<minlist.size();y++) {
-					minlist.get(y).counted--;
-				}
-				n.counted++;
-				return;
-			}
-			if(min > n.distance) {
-				min = n.distance;
-				for(int y=0;y<minlist.size();y++) {
-					minlist.get(y).counted--;
-				}
-				minlist.clear();
-				minlist.add(n);
-				n.counted++;
-			} else {
-				minlist.add(temp);
-				if(temp.distance != 0) {
-					temp.counted++;
-				}
-			}
-		}
-		for(int x=0;x<minlist.size();x++) {
-			updateCount(minlist.get(x));
-		}
-	}
-	
-	private void updateIter(Node n) {
-		Stack<Node> s = new Stack<Node>();
-		s.push(n);
-		while(n.distance != 0) {
-			n = s.pop();
-			int min = n.inAdj.get(0).distance;
-			ArrayList<Node> minlist = new ArrayList<Node>();
-			minlist.add(n.inAdj.get(0));
-			for(int x=0;x<n.inAdj.size();x++) {
-				Node temp = n.inAdj.get(x);
-				if(temp.distance == 0) {
-					for(int y=0;y<minlist.size();y++) {
-						minlist.get(y).counted--;
-					}
-					//n.counted++;
-					return;
-				}
-				if(min > temp.distance) {
-					min = temp.distance;
-					for(int y=0;y<minlist.size();y++) {
-						minlist.get(y).counted--;
-					}
-					minlist.clear();
-					minlist.add(temp);
-					temp.counted++;
-				} else if(temp.distance == min) {
-					minlist.add(temp);
-					if(temp.distance != 0) {
-						temp.counted++;
-					}
-				}
-			}
-			for(int x=0;x<minlist.size();x++) {
-				s.push(minlist.get(x));
-			}
-		}
 	}
 	
 	private void resetGraph() {
@@ -385,6 +335,10 @@ public class GraphProcessor
 			this.adj = new ArrayList<Node>();
 			this.inAdj = new ArrayList<Node>();
 			from = null;
+		}
+		
+		public String toString() {
+			return this.name;
 		}
 
 		@Override
