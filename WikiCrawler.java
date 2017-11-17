@@ -147,9 +147,9 @@ public class WikiCrawler
 			e.printStackTrace();
 		}
 		int count = 0;
-		//while(true) {
-			//File temp = new File("../../graph" + count + ".txt");
-			File temp = new File("../../WikiISU.txt");
+		while(true) {
+			File temp = new File("../../graph" + count + ".txt");
+			//File temp = new File("../../WikiISU.txt");
 			if(!temp.exists()) {
 				try {
 					temp.createNewFile();
@@ -172,10 +172,10 @@ public class WikiCrawler
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				//break;
-			//} else {
-			//	count++;
-			//}
+				break;
+			} else {
+				count++;
+			}
 		}
 		
 		
