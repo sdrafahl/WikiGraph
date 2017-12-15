@@ -30,24 +30,25 @@ import java.util.regex.Pattern;
 public class WikiCrawler
 {
 	static int indexCount = 0;
-	
-	static final String BASE_URL = "https://en.wikipedia.org";
-	
+
+	static final String BASE_URL = "http://web.cs.iastate.edu/~pavan";
+
 	static int requests = 0;
-	
+
 	int max;
-	
+
 	ArrayList<Node> vertices;
-	
+
 	String url;
-	
+
 	ArrayList<String> topics;
-	
+
 	String fileName;
 
 	public WikiCrawler(String seedUrl, int max, ArrayList<String> topics, String fileName) {
 		this.max = max;
 		this.url = seedUrl;
+
 		this.topics = topics;
 		this.fileName = fileName;
 		this.vertices = new ArrayList<Node>();
@@ -57,7 +58,7 @@ public class WikiCrawler
 		String subDoc = null;
 		for(int x=0;x<doc.length();x++) {
 			if(doc.charAt(x) == '<') {
-				if(doc.charAt(x+1) == 'p' && doc.charAt(x+2) == '>') { 
+				if(doc.charAt(x+1) == 'p' && doc.charAt(x+2) == '>') {
 					subDoc = doc.substring(x+3, doc.length());
 					break;
 				}
@@ -86,7 +87,7 @@ public class WikiCrawler
 					String link = word.substring(first, last);
 					if(!link.contains("#") && !link.contains(":") && !hash.contains(link)) {
 						if(link.contains(".")) {
-							if(link.contains(".com")) {
+							if(link.contains(".com") || link.contains(".html")) { //change
 								urls.add(link);
 								hash.add(link);
 							}
@@ -102,33 +103,34 @@ public class WikiCrawler
 
 	public void crawl() {
 		HashMap h = new HashMap();
-		PriorityQueue<Node> q=new PriorityQueue<Node>(); 
+		PriorityQueue<Node> q=new PriorityQueue<Node>();
 		try {
 			String doc = getHTML(this.url);
 			if(this.hasTopics(doc)) {
 				Node root = new Node(doc);
 				root.link = this.url;
 				q.add(root);
-				h.put(doc, root);
+				// h.put(doc, root); fix problem
+				h.put(root.link, root);
 				while(!q.isEmpty()) {
-					System.out.println("The Size of Que: " +  q.size());
-					System.out.println("The number of pages: " + h.size());
 					Node temp = q.poll();
 					ArrayList<String> links = this.extractLinks(temp.doc);
 					if(h.size() < this.max) {
 						for(int x=0;x<links.size() && h.size() < this.max;x++) {
 							String docTemp = this.getHTML(links.get(x));
-							if(!h.containsKey(links.get(x)) && this.hasTopics(docTemp)) {
-								Node n = new Node(docTemp);
-								n.link = links.get(x);
-								temp.adj.add(n);
-								h.put(links.get(x), n);
-								q.add(n);
-							} else {
-								Node neighbor = (Node) h.get(docTemp);
-								System.out.println("Adding Neighbor: " + neighbor.link);
-								if(!temp.link.equals(neighbor.link)) {
-									temp.adj.add(neighbor);
+							if(this.hasTopics(docTemp)) { // moved this if out here
+								if(!h.containsKey(links.get(x))) {
+									Node n = new Node(docTemp);
+									n.link = links.get(x);
+									temp.adj.add(n);
+									h.put(links.get(x), n);
+									q.add(n);
+								} else {
+									// Node neighbor = (Node) h.get(docTemp);
+									Node neighbor = (Node) h.get(links.get(x));
+									if(!temp.link.equals(neighbor.link)) {
+										temp.adj.add(neighbor);
+									}
 								}
 							}
 						}
@@ -142,25 +144,23 @@ public class WikiCrawler
 					}
 				}
 			}
-			
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		int count = 0;
-		while(true) {
-			File temp = new File("../../graph" + count + ".txt");
-			//File temp = new File("../../WikiISU.txt");
-			if(!temp.exists()) {
+
+			File temp = new File(this.fileName);
+
 				try {
 					temp.createNewFile();
 					PrintWriter writer = new PrintWriter(temp);
 					writer.println(h.size());
 					Collection col = h.values();
 					Object[] nodes =  col.toArray();
-					
+
 					for(int x=0;x<nodes.length;x++) {
 						Node tem = (Node) nodes[x];
-						System.out.println(tem.link);
 						for(int y=0;y<tem.adj.size();y++) {
 							writer.println(tem.link + " " + tem.adj.get(y).link);
 						}
@@ -169,18 +169,13 @@ public class WikiCrawler
 				} catch (FileNotFoundException e) {
 					e.printStackTrace();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
+
 					e.printStackTrace();
 				}
-				break;
-			} else {
-				count++;
-			}
-		}
-		
-		
+
+
 	}
-	
+
 	private String getHTML(String url) throws IOException {
 		if(requests == 50) {
 			try {
@@ -190,9 +185,10 @@ public class WikiCrawler
 			}
 			requests = 0;
 		}
-		url = this.BASE_URL + url; 
+		url = this.BASE_URL + url;
 		URL ur = new URL(url);
         URLConnection yc = ur.openConnection();
+
         BufferedReader in = new BufferedReader(new InputStreamReader(
                 yc.getInputStream(), "UTF-8"));
         String inputLine;
@@ -203,7 +199,7 @@ public class WikiCrawler
         requests++;
         return a.toString();
 	}
-	
+
 	private boolean hasTopics(String doc) {
 		for(int x=0;x<this.topics.size();x++) {
 			if(!doc.contains(this.topics.get(x))) {
@@ -212,19 +208,19 @@ public class WikiCrawler
 		}
 		return true;
 	}
-	
+
 	class Node implements Comparable {
-		
+
 		boolean visited;
-		
+
 		int index;
-		
+
 		String doc;
-		
+
 		ArrayList<Node> adj;
-		
+
 		String link;
-		
+
 		public Node(String doc) {
 			this.index = indexCount;
 			indexCount++;
@@ -238,8 +234,6 @@ public class WikiCrawler
 			Node n = (Node) o;
 			return this.index - n.index;
 		}
-		
+
 	}
 }
-
-

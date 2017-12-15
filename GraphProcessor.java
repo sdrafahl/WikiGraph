@@ -26,9 +26,9 @@ import javax.swing.text.html.HTMLDocument.Iterator;
 public class GraphProcessor
 {
 	HashMap hash;
-	
+
 	int max;
-	
+
 	public GraphProcessor(String graphData)
 	{
 		File file = new File(graphData);
@@ -42,7 +42,7 @@ public class GraphProcessor
 					String line = scan.nextLine();
 					Scanner scanLine = new Scanner(line);
 					String from = scanLine.next();
-					
+
 					Node fromNode;
 					if(hash.containsKey(from)) {
 						fromNode = (Node) hash.get(from);
@@ -50,7 +50,7 @@ public class GraphProcessor
 						fromNode = new Node(from, max);
 						hash.put(from, fromNode);
 					}
-					
+
 					String vertice = scanLine.next();
 					Node to;
 					if(hash.containsKey(vertice)) {
@@ -62,7 +62,7 @@ public class GraphProcessor
 					fromNode.adj.add(to);
 					to.inAdj.add(fromNode);
 				}
-				
+
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			}
@@ -74,7 +74,7 @@ public class GraphProcessor
 		Node n = (Node) hash.get(v);
 		return n.adj.size();
 	}
-	
+
 	private void maxOutDegree() {
 		Collection col = this.hash.values();
 		Object[] nodes =  col.toArray();
@@ -99,7 +99,7 @@ public class GraphProcessor
 		}
 		System.out.println("END");
 	}
-	
+
 	private void maxCentrality() {
 		Collection col = this.hash.values();
 		Object[] nodes =  col.toArray();
@@ -139,14 +139,18 @@ public class GraphProcessor
 			return path;
 		}
 		resetGraph();
-		ArrayList<Node> list = this.dykstra(u, v).get(0);
-		for(int x=list.size()-1;x>=0;x--) {
-			path.add(list.get(x).name);
+		ArrayList<ArrayList<Node>> paths = this.dykstra(u, v);
+		if(path.size() > 1) {
+			ArrayList<Node> list = paths.get(0);
+			for(int x=list.size()-1;x>=0;x--) {
+				path.add(list.get(x).name);
+			}
+			return path;
+		} else {
+			return new ArrayList<String>();
 		}
-		
-		return path;
 	}
-	
+
 	private ArrayList<ArrayList<Node>> dykstra(String u, String v)
 	{
 		if(u.equals(v)) {
@@ -158,14 +162,14 @@ public class GraphProcessor
 		Node to = (Node) this.hash.get(v);
 		from.distance = 0;
 		q.add(from);
-		
+
 		while(!q.isEmpty()) {
 			Node n = q.poll();
 			n.visited = true;
 			for(int x=0;x<n.adj.size();x++) {
 				n.adj.get(x).distance = Math.min(n.adj.get(x).distance, n.distance + 1);
 				if(!n.adj.get(x).visited) {
-					q.add(n.adj.get(x));	
+					q.add(n.adj.get(x));
 				}
 			}
 		}
@@ -174,7 +178,7 @@ public class GraphProcessor
 			paths.clear();
 			return paths;
 		}
-		
+
 		from = (Node) this.hash.get(v);
 		getPath(from, null, paths);
 		for(int x=0;x<paths.size();x++) {
@@ -184,29 +188,29 @@ public class GraphProcessor
 				n.get(y).counted++;
 			}
 		}
-		
+
 		return paths;
-		
+
 	}
-	
+
 	private void getPath(Node n, ArrayList<Node> path, ArrayList<ArrayList<Node>> paths) {
-		
+
 		if(n.distance == 0) {
 			path.add(n);
 			paths.add(path);
 			return;
 		}
-		
+
 		if(path == null) {
 			path = new ArrayList<Node>();
 		}
-		
+
 		path.add(n);
 		if(n.distance == 0) {
 			paths.add(path);
 			return;
 		}
-		
+
 		if(n.inAdj.size() == 0) {
 			path.clear();
 			return;
@@ -224,13 +228,13 @@ public class GraphProcessor
 				minSet.add(temp);
 			}
 		}
-	
+
 		for(int x=0;x<minSet.size();x++) {
 			ArrayList<Node> p = new ArrayList<Node>();
 			for(int y=0;y<path.size();y++) {
 				p.add(path.get(y));
 			}
-			
+
 			getPath(minSet.get(x), p, paths);
 		}
 	}
@@ -280,13 +284,13 @@ public class GraphProcessor
 				Node n = (Node) nodes[x];
 				Node temp = (Node) this.hash.get(v);
 				this.dykstra(n.name, n1.name);
-				
+
 			}
 		}
 		Node temp = (Node) this.hash.get(v);
 		return temp.counted;
 	}
-	
+
 	private void resetGraph() {
 		Collection col = this.hash.values();
 		Object[] nodes =  col.toArray();
@@ -297,9 +301,9 @@ public class GraphProcessor
 			n.counted = 0;
 			n.from = null;
 		}
-		
+
 	}
-	
+
 	private void resetDistance() {
 		Collection col = this.hash.values();
 		Object[] nodes =  col.toArray();
@@ -310,23 +314,23 @@ public class GraphProcessor
 			n.from = null;
 		}
 	}
-	
+
 	class Node implements Comparable {
-		
+
 		boolean visited;
-		 
+
 		int distance;
-		
+
 		String name;
-		
+
 		ArrayList<Node> inAdj;
-		
+
 		ArrayList<Node> adj;
-		
+
 		Node from;
-		
+
 		int counted;
-		
+
 		public Node(String name, int sizeOfGraph) {
 			this.name = name;
 			this.distance = 2 * sizeOfGraph;
@@ -336,7 +340,7 @@ public class GraphProcessor
 			this.inAdj = new ArrayList<Node>();
 			from = null;
 		}
-		
+
 		public String toString() {
 			return this.name;
 		}
