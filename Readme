@@ -1,3 +1,5 @@
 This is a simple web graph processing project.
 
 WikiCrawler traverses web pages and creates a file that represents a directed graph.
+
+GraphProcessor will process the graph file that is produces from the WikiCrawler.
